@@ -152,3 +152,10 @@ async fn welcome(cx: &Cx) -> Result<impl View> {
 The submit button runs `launcher::connect` in the browser. `launcher::endpoint()` and `launcher::ticket()` prefill the public destination; empty destination inputs use the bundled server. Add `readonly=(!launcher::endpoint().is_empty())` to lock a prefilled endpoint field. Once connected, the browser opens your normal app.
 
 [Launcher guide](docs/launcher.md) covers deployment and connection links. [Transport guide](docs/router/iroh.md) covers custom server setups. [REBASE.md](REBASE.md) records the integration and upstream rebase workflow.
+
+## Current limitations
+
+| Area | Limitation |
+| --- | --- |
+| Cookies | Cookie-based authentication and `Set-Cookie` responses are unsupported. Use `HeaderTokenStore` for sessions. |
+| WebSockets | Custom WebSocket connections are unsupported. Topcoat's `live!` and `emit!` work through the iroh runtime transport. |
