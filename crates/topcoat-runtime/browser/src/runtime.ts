@@ -1,6 +1,6 @@
 import { hydrate as hydrateDom } from "./dom/hydrate";
 import { Context } from "./expression/context";
-import { Connection } from "./render/connection";
+import { Connection, type OpenSocket } from "./render/connection";
 import { NavigationController } from "./render/navigation";
 import { PageUnit, pageUrl } from "./render/page";
 import type { Scope } from "./scope";
@@ -10,12 +10,18 @@ export class Runtime {
 	readonly registry = new SignalRegistry();
 	readonly context: Context = new Context(this.registry);
 	/**
-	 * The document's WebSocket, opened at the page's URL, carrying the
+	 * The document's connection, opened at the page's URL, carrying the
 	 * connected renders of the page and its shards.
 	 */
-	readonly connection: Connection = new Connection(pageUrl, (error) =>
-		this.reportError(error),
-	);
+	readonly connection: Connection;
+
+	constructor(open?: OpenSocket) {
+		this.connection = new Connection(
+			pageUrl,
+			(error) => this.reportError(error),
+			open,
+		);
+	}
 	/** The page: the outermost unit, owning every signal in the document. */
 	readonly page: PageUnit = new PageUnit(this);
 	/** Opens pages by updating the existing document. */

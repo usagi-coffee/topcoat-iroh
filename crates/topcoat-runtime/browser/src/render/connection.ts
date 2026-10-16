@@ -32,8 +32,15 @@ export interface ConnectionTarget extends FrameTarget {
 	connectionOpened(): void;
 }
 
-/** Creates a WebSocket with the given URL and subprotocol. */
-export type OpenSocket = (url: string, protocol: string) => WebSocket;
+/** A reliable message transport with WebSocket-style lifecycle events. */
+export interface RuntimeSocket extends EventTarget {
+	readonly readyState: number;
+	send(message: string): void;
+	close(): void;
+}
+
+/** Opens a transport for the page URL and runtime protocol. */
+export type OpenSocket = (url: string, protocol: string) => RuntimeSocket;
 
 const defaultOpen: OpenSocket = (url, protocol) => new WebSocket(url, protocol);
 
@@ -54,7 +61,7 @@ const INITIAL_RETRY_DELAY = 1000;
 const MAX_RETRY_DELAY = 30_000;
 
 /**
- * One WebSocket for the whole document, carrying the connected renders of
+ * One transport for the whole document, carrying the connected renders of
  * any number of targets side by side.
  *
  * Targets that need a connected render join as members. The socket opens
@@ -68,7 +75,7 @@ const MAX_RETRY_DELAY = 30_000;
  * start a fresh run.
  */
 export class Connection {
-	private socket: WebSocket | null = null;
+	private socket: RuntimeSocket | null = null;
 	private retry: ReturnType<typeof setTimeout> | null = null;
 	/** Reconnect attempts since the last successful connection. */
 	private attempt = 0;
@@ -164,14 +171,27 @@ export class Connection {
 	private connect(): void {
 		const url = new URL(this.url(), location.href);
 		url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-		const socket = this.open(url.href, RUNTIME_PROTOCOL);
+		let socket: RuntimeSocket;
+		try {
+			socket = this.open(url.href, RUNTIME_PROTOCOL);
+		} catch (error) {
+			this.reportError(error);
+			this.scheduleReconnect();
+			return;
+		}
 		this.socket = socket;
 		socket.addEventListener("open", () => {
 			if (this.socket !== socket) return;
 			this.attempt = 0;
 			for (const member of [...this.members]) member.connectionOpened();
 		});
-		socket.addEventListener("message", (event) => this.receive(event.data));
+		socket.addEventListener("message", (event) => {
+			if (this.socket === socket) this.receive((event as MessageEvent).data);
+		});
+		socket.addEventListener("error", (event) => {
+			if (this.socket === socket && event instanceof CustomEvent)
+				this.reportError(event.detail);
+		});
 		socket.addEventListener("close", () => {
 			// Do not reconnect if disconnect() already cleared this socket.
 			if (this.socket !== socket) return;
