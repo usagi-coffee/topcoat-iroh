@@ -1,8 +1,10 @@
 # Topcoat + iroh
 
-**Live apps, wherever your server lives.**
+**Your existing Topcoat app, reachable from anywhere.**
 
-A fork of [Topcoat](https://github.com/tokio-rs/topcoat) for fully server-side live apps, accessible across networks. Keep your application state, logic, and rendering on your own machine. Open the app in a browser from anywhere with access to iroh relays, without exposing an HTTP port, setting up a VPN, or managing a tunnel.
+A fork of [Topcoat](https://github.com/tokio-rs/topcoat) designed as a **drop-in iroh integration for existing Topcoat apps**. You should be able to point your app at this fork, run `topcoat bundle`, run the bundled server, and deploy the generated launcher. Your entire app should then be accessible from anywhere with relay access, with pages, app assets, requests, and live updates all routed through iroh relays.
+
+Keep your application state, logic, and rendering on your own machine, without exposing an HTTP port, setting up a VPN, or managing a tunnel.
 
 Built for personal tools, home servers, live dashboards, and shared apps where the server owns the state.
 
@@ -19,6 +21,8 @@ Point your existing `topcoat` dependency at this fork and keep `topcoat::start(r
 ```sh
 topcoat bundle
 ```
+
+The CLI generates the launcher for you. No custom `#[launcher]` view or application rewrite is required for this workflow.
 
 ```text
 target/release/
