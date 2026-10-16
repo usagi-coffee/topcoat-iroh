@@ -34,7 +34,7 @@ serde_json.workspace = true
 topcoat-router = { workspace = true, optional = true, features = ["websocket"] }
 
 futures-util = { workspace = true, optional = true, features = ["sink"] }
-tokio = { workspace = true, optional = true, features = ["rt", "sync"] }
+tokio = { workspace = true, optional = true, features = ["rt", "sync", "macros"] }
 
 [dev-dependencies]
 # We cannot use `workspace = true` with `default-features = false`.

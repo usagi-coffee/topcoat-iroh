@@ -1,5 +1,7 @@
 mod rerun;
 #[cfg(not(target_family = "wasm"))]
+pub(crate) mod session;
+#[cfg(not(target_family = "wasm"))]
 mod socket;
 
 pub use rerun::*;
@@ -63,6 +65,6 @@ impl Layer for RuntimeLayer {
 /// The limit set with
 /// [`RouterBuilderRuntimeExt::max_runs_per_connection`](crate::RouterBuilderRuntimeExt::max_runs_per_connection).
 #[derive(Debug, Clone, Copy)]
-// Read only by the WebSocket handler, which native servers compile.
+// Read by connection handlers, which native servers compile.
 #[cfg_attr(target_family = "wasm", allow(dead_code))]
 pub(crate) struct MaxRunsPerConnection(pub(crate) usize);
