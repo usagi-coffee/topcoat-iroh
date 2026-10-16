@@ -77,6 +77,30 @@ test("forwards binary uploads, duplicate headers and streamed response bytes", a
 	assert.equal(f.state.freed, 1);
 });
 
+test("forwards payloads when the browser does not expose a request body stream", async () => {
+	for (const body of [null, undefined]) {
+		for (const payload of ['{"count":1}', new Uint8Array([0, 128, 255])]) {
+			const f = fixture();
+			const request = new Request("https://app.example/procedure", {
+				method: "POST",
+				body: payload,
+			});
+			const expected = new Uint8Array(await request.clone().arrayBuffer());
+			Object.defineProperty(request, "body", { value: body });
+			const { response, finished } = await forward(
+				request,
+				f.connection,
+				f.sessions,
+			);
+			await response.arrayBuffer();
+			await finished;
+			assert.deepEqual(f.state.uploaded, [...expected]);
+			assert.equal(f.state.ended, true);
+			assert.equal(f.state.freed, 1);
+		}
+	}
+});
+
 test("persists session changes before redirects and sends credentials on navigation", async () => {
 	const f = fixture({
 		status: 303,

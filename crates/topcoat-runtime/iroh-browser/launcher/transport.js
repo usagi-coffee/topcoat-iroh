@@ -58,6 +58,10 @@ export async function forward(request, connection, sessions) {
 				if (done) break;
 				await stream.write(value);
 			}
+		} else if (request.method !== "GET" && request.method !== "HEAD") {
+			// Some browsers expose no Request.body stream even for nonempty
+			// payloads. Read the bytes through the supported Body API instead.
+			await stream.write(new Uint8Array(await request.arrayBuffer()));
 		}
 		stream.finish();
 	})();
