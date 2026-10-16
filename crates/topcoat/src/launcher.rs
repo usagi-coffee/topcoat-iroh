@@ -113,16 +113,20 @@ async fn export(out: &Path) -> Result<()> {
 
 /// Loads the browser runtime and handles reserved connection fragments.
 ///
-/// Include this in the head of a custom launcher. A link containing `endpoint`
-/// or `ticket` connects automatically, with `secret` selecting the client identity.
+/// Include this in the head of a custom launcher. Set `auto_connect: true` for a
+/// visual welcome screen that connects without a form, using the bundled server
+/// or saved connection. It defaults to `false` for interactive launchers.
+/// Connection fragments connect automatically in either mode, with `secret`
+/// selecting the client identity. Render an element with `role="status"` to
+/// display connection errors.
 #[crate::view::component]
-pub async fn script() -> Result<impl crate::view::View> {
+pub async fn script(#[default] auto_connect: bool) -> Result<impl crate::view::View> {
     Ok(crate::view::view! {
         crate::runtime::script()
         <script
             type="module"
             src="/__topcoat/bootstrap.js"
-            data-topcoat-launcher="custom"
+            data-topcoat-launcher=(if auto_connect { "auto" } else { "custom" })
         ></script>
     })
 }

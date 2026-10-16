@@ -33,7 +33,7 @@ The CLI builds the browser transport and generates matching JavaScript and Wasm 
 
 The fork enables the `iroh` feature by default. `topcoat bundle` compiles `topcoat::start(router)` to serve pages, assets, procedures, shards, and connected renders over iroh, with no HTTP listener. Ordinary `cargo run` and `topcoat dev` retain their HTTP behavior. Explicit `topcoat::serve` calls retain the listener you supply; use the [transport guide](router/iroh.md) for custom serving arrangements.
 
-The server prints its endpoint and ticket when online. The generated launcher connects to this endpoint automatically. A custom launcher stays on its connection screen unless a connection fragment is supplied. Empty endpoint and ticket inputs in `launcher::connect` use the bundled destination. Browser links can still select a different endpoint or ticket.
+The server prints its endpoint and ticket when online. The generated launcher connects to this endpoint automatically. A custom launcher can also connect automatically with `launcher::script(auto_connect: true)`, or wait for form submission with `launcher::script()`. Connection fragments connect automatically in either mode. Empty endpoint and ticket inputs in `launcher::connect` use the bundled destination. Browser links can still select a different endpoint or ticket.
 
 Build settings are saved in `target/topcoat/identities/PACKAGE/BINARY.json`, with private file permissions on Unix. Later bundles reuse the server key and allowlist. An explicit `--iroh-secret` replaces the key; one or more `--iroh-peer` values replace the allowlist. Without a saved or supplied allowlist, all peers are allowed. To clear a saved list, set `peers` to `[]` in that build file and bundle again.
 
@@ -45,15 +45,16 @@ When `--iroh-secret` is supplied alongside a destination, bundling fails if the 
 
 The allowlist checks the authenticated browser app peer before handling requests or issuing live-render credentials. Live rendering uses a separate runtime endpoint, authorized by a short-lived, single-use ticket bound to that endpoint. An unlisted app peer cannot obtain that ticket. The client key supplied through `#secret` or the launcher form is separate from `--iroh-secret`.
 
-# Custom Connection Screen
+# Custom Launcher
 
 Enable Topcoat's `launcher` feature. Annotate one async view with `#[launcher]` anywhere in the executable, including `main.rs` or a declared module. Add the export hook before opening databases or starting servers:
 
 ```rust,no_run
 use topcoat::{
-    Result, context::Cx, launcher,
-    runtime::{Event, expr, signal},
-    view::{View, view},
+    Result, launcher,
+    asset::{AssetBundle, RouterBuilderAssetExt},
+    router::{RouterBuilderDiscoverExt, module_router},
+    runtime::RouterBuilderRuntimeExt,
 };
 
 #[tokio::main]
@@ -61,9 +62,51 @@ async fn main() -> Result<()> {
     if launcher::export_if_requested().await? {
         return Ok(());
     }
-    // Start your iroh server here.
+    // Keep your usual application router here.
+    let router = module_router!()
+        .discover()
+        .assets(AssetBundle::load()?)
+        .runtime()
+        .build();
+    topcoat::start(router).await?;
     Ok(())
 }
+```
+
+## Visual Welcome Screen
+
+Use `launcher::script(auto_connect: true)` to connect without asking for input. The bundled endpoint or ticket supplies the destination, with the saved connection as a fallback. Connection links can override the destination or supply a client identity. Customize the markup, components, and assets as in any Topcoat view:
+
+```rust
+use topcoat::{Result, launcher, view::{View, view}};
+
+#[launcher]
+async fn welcome() -> Result<impl View> {
+    Ok(view! {
+        <!DOCTYPE html>
+        <html>
+            <head>launcher::script(auto_connect: true)</head>
+            <body>
+                <h1>"Welcome home"</h1>
+                <p role="status">"Connecting to your app..."</p>
+            </body>
+        </html>
+    })
+}
+```
+
+Connection errors replace the text in the first element with `role="status"`, or appear in an appended paragraph if none exists. Once connected, the browser opens the normal app.
+
+## Custom Auth Screen
+
+To collect a destination or client identity, use a form instead. `launcher::script()` defaults to `auto_connect: false`, waiting for submission unless the URL contains connection fields. Use `--iroh-peer` when the server should accept only specific client identities.
+
+```rust
+use topcoat::{
+    Result, context::Cx, launcher,
+    runtime::{Event, expr, signal},
+    view::{View, view},
+};
 
 #[launcher]
 async fn connection_screen(cx: &Cx) -> Result<impl View> {
@@ -132,4 +175,4 @@ After building, run the server executable and serve the launcher directory:
 python3 -m http.server 8080 --directory target/release/launcher
 ```
 
-Open `http://localhost:8080` with a connection fragment, or use the custom form. Localhost supports service workers without HTTPS. The [iroh app example](../examples/iroh-app/src/main.rs) defines its launcher in `main.rs` beside normal pages, procedures, shards, and live updates.
+Open `http://localhost:8080`. The default launcher and custom screens with `auto_connect: true` connect automatically. Otherwise, use the custom form or a connection fragment. Localhost supports service workers without HTTPS. The [iroh app example](../examples/iroh-app/src/main.rs) defines its launcher in `main.rs` beside normal pages, procedures, shards, and live updates.

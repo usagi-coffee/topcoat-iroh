@@ -10,7 +10,7 @@ Built for personal tools, home servers, live dashboards, and shared apps where t
 
 ## Differences
 
-You deploy a **static launcher** alongside your Rust server. It loads the browser's JavaScript/Wasm transport and connects to the app over iroh. Optionally design an interactive endpoint, ticket, and secret connection screen with `#[launcher]`, in the same Cargo package.
+You deploy a **static launcher** alongside your Rust server. It loads the browser's JavaScript/Wasm transport and connects to the app over iroh. Optionally use `#[launcher]` to design a visual welcome screen or an interactive connection form, in the same Cargo package.
 
 The launcher automatically installs this fork's **service worker**, which forwards normal browser requests through iroh's Wasm client. Pages, assets, forms, and procedures keep their usual URLs while the worker handles the transport.
 
@@ -54,6 +54,59 @@ Common scenarios:
 
 Add `#[launcher]` in `main.rs` or any module beside your app code. The CLI detects it automatically, and `/` remains an application route.
 
+Enable the `launcher` feature on your existing dependency:
+
+```toml
+topcoat = { git = "https://github.com/usagi-coffee/topcoat-iroh", features = ["launcher"] }
+```
+
+Call the export hook before server startup so the CLI can render your screen at build time. With `auto_connect: true`, your design connects to the bundled server without inputs or a button:
+
+```rust,no_run
+use topcoat::{
+    Result, launcher,
+    asset::{AssetBundle, RouterBuilderAssetExt},
+    router::{RouterBuilderDiscoverExt, module_router},
+    runtime::RouterBuilderRuntimeExt,
+    view::{View, view},
+};
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    if launcher::export_if_requested().await? {
+        return Ok(());
+    }
+    // Keep your usual application router here.
+    let router = module_router!()
+        .discover()
+        .assets(AssetBundle::load()?)
+        .runtime()
+        .build();
+    topcoat::start(router).await?;
+    Ok(())
+}
+
+#[launcher]
+async fn welcome() -> Result<impl View> {
+    Ok(view! {
+        <!DOCTYPE html>
+        <html>
+            <head>launcher::script(auto_connect: true)</head>
+            <body>
+                <h1>"Welcome home"</h1>
+                <p role="status">"Connecting to your app..."</p>
+            </body>
+        </html>
+    })
+}
+```
+
+Style it with your usual components and assets. Connection errors appear in `role="status"`. Links can still supply `#endpoint`, `#ticket`, or a client identity with `#secret`. Without `#[launcher]`, neither the feature nor the export hook is needed.
+
+### Custom auth screen
+
+To let users choose a server and client identity, replace `welcome` with a form. `launcher::script()` waits for submission unless the link supplies connection fields. Pair this with `--iroh-peer` to restrict access to allowed identities.
+
 ```rust
 use topcoat::{
     Result, context::Cx, launcher,
@@ -96,8 +149,6 @@ async fn welcome(cx: &Cx) -> Result<impl View> {
 }
 ```
 
-For a custom launcher, enable the `launcher` feature and call `launcher::export_if_requested().await?` before server startup, returning from `main` when it returns `true`. This lets the CLI render the screen at build time.
-
-The submit button runs `launcher::connect` in the browser. `launcher::endpoint()` and `launcher::ticket()` prefill the public destination. You can make a prefilled input read-only with `readonly=(!launcher::endpoint().is_empty())`. Empty destination inputs use the bundled server. Design this screen as you would any Topcoat view. Once connected, the browser opens your normal app. Without `#[launcher]`, neither the feature nor the export hook is needed.
+The submit button runs `launcher::connect` in the browser. `launcher::endpoint()` and `launcher::ticket()` prefill the public destination; empty destination inputs use the bundled server. Add `readonly=(!launcher::endpoint().is_empty())` to lock a prefilled endpoint field. Once connected, the browser opens your normal app.
 
 [Launcher guide](docs/launcher.md) covers deployment and connection links. [Transport guide](docs/router/iroh.md) covers custom server setups. [REBASE.md](REBASE.md) records the integration and upstream rebase workflow.
