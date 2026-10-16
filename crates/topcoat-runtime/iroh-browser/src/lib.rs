@@ -5,7 +5,7 @@ mod http;
 use futures_util::lock::Mutex;
 pub use http::*;
 use iroh::{
-    Endpoint, EndpointAddr,
+    Endpoint, EndpointAddr, SecretKey,
     endpoint::{Connection, RecvStream, SendStream, presets},
 };
 use wasm_bindgen::prelude::*;
@@ -24,14 +24,19 @@ pub struct BrowserEndpoint {
 }
 
 /// Creates a browser endpoint. Close it after the connection ends.
+/// An optional private key selects a stable client identity.
 ///
 /// # Errors
 ///
-/// Returns an error if the endpoint cannot bind.
+/// Returns an error if the key is invalid or the endpoint cannot bind.
 #[wasm_bindgen(js_name = createEndpoint)]
-pub async fn create_endpoint() -> Result<BrowserEndpoint, JsValue> {
+pub async fn create_endpoint(secret: Option<String>) -> Result<BrowserEndpoint, JsValue> {
+    let mut builder = Endpoint::builder(presets::N0);
+    if let Some(secret) = secret.filter(|value| !value.trim().is_empty()) {
+        builder = builder.secret_key(secret.trim().parse::<SecretKey>().map_err(js_error)?);
+    }
     Ok(BrowserEndpoint {
-        endpoint: Endpoint::bind(presets::N0).await.map_err(js_error)?,
+        endpoint: builder.bind().await.map_err(js_error)?,
     })
 }
 

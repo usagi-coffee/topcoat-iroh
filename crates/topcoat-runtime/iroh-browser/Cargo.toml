@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 iroh = { workspace = true, features = ["tls-ring"] }
+iroh-tickets.workspace = true
 serde_json.workspace = true
 futures-util.workspace = true
 wasm-bindgen.workspace = true

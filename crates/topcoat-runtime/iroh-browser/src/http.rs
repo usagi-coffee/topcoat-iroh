@@ -5,6 +5,7 @@ use iroh::{
     EndpointAddr, EndpointId,
     endpoint::{Connection, RecvStream, SendStream},
 };
+use iroh_tickets::endpoint::EndpointTicket;
 use wasm_bindgen::prelude::*;
 
 use crate::{BrowserEndpoint, js_error};
@@ -14,17 +15,38 @@ const MAX_HEAD_SIZE: usize = 64 * 1024;
 
 #[wasm_bindgen]
 impl BrowserEndpoint {
-    /// Connects to an app using its endpoint ID or serialized endpoint address.
+    /// Connects to an app using an endpoint ID/address or a separate ticket.
     /// No HTTP bootstrap is needed.
     ///
     /// # Errors
     ///
-    /// Returns an error if the address is invalid or the connection fails.
+    /// Returns an error unless exactly one endpoint or ticket is supplied, if
+    /// that value is invalid, or if the connection fails.
     #[wasm_bindgen(js_name = connectHttp)]
-    pub async fn connect_http(&self, address: &str) -> Result<HttpConnection, JsValue> {
-        let address = match address.parse::<EndpointId>() {
-            Ok(id) => EndpointAddr::from(id),
-            Err(_) => serde_json::from_str(address).map_err(js_error)?,
+    pub async fn connect_http(
+        &self,
+        endpoint: Option<String>,
+        ticket: Option<String>,
+    ) -> Result<HttpConnection, JsValue> {
+        let endpoint = endpoint
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let ticket = ticket
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let address = match (endpoint, ticket) {
+            (Some(endpoint), None) => match endpoint.parse::<EndpointId>() {
+                Ok(id) => EndpointAddr::from(id),
+                Err(_) => serde_json::from_str(endpoint).map_err(js_error)?,
+            },
+            (None, Some(ticket)) => ticket
+                .parse::<EndpointTicket>()
+                .map_err(js_error)?
+                .endpoint_addr()
+                .clone(),
+            _ => return Err(js_error("supply either an endpoint or a ticket")),
         };
         let connection = self
             .endpoint
