@@ -16,30 +16,30 @@ The application developer experience stays vanilla Topcoat: `view!`, pages, comp
 
 ## Build and deploy
 
-Point your existing `topcoat` dependency at this fork and keep `topcoat::start(router)` as usual. Use this fork's CLI:
+Point your `topcoat` dependency at this fork and keep `topcoat::start(router)`. Run `topcoat bundle` with this fork's CLI.
 
-```sh
+```text
 topcoat bundle
+  --iroh-secret KEY     # Embed a stable server key; derive the public endpoint (optional)
+  --iroh-endpoint ID    # Set the public server endpoint (optional)
+  --iroh-ticket TICKET  # Use a server ticket instead of --iroh-endpoint (optional)
+  --iroh-peer ID        # Allow this client identity; repeat for more clients (optional)
 ```
 
-The CLI generates the launcher for you. No custom `#[launcher]` view or application rewrite is required for this workflow.
+The CLI builds the server, assets, and launcher. No custom `#[launcher]` is needed.
 
 ```text
 target/release/
-  YOUR_APP    Run this executable on your server.
+  YOUR_APP    Run on your server.
   assets/     Keep beside the executable.
-  launcher/   Publish these static files to an HTTPS host.
+  launcher/   Publish to a static HTTPS host.
 ```
 
-A GitHub Pages user site or custom domain works. Host at the root of a dedicated origin; project subpaths are not supported. Your domain points to the static host, and your Rust app stays on its own network.
+Host `launcher/` at the root of a dedicated origin, such as a GitHub Pages user site or custom domain. Open that URL to connect. Both browser and server need relay access; the Rust app needs no public HTTP port. Ordinary `cargo run` and `topcoat dev` keep HTTP.
 
-The bundle embeds a server identity and configures the launcher with its public endpoint, so it is ready to connect. Ordinary `cargo run` and `topcoat dev` keep HTTP.
+For production, use a stable `--iroh-secret`, or bundle with `--iroh-endpoint` / `--iroh-ticket` and set `TOPCOAT_IROH_SECRET` on the server. A key that does not match the destination fails bundling or startup. Server keys stay out of the launcher; `#secret` selects the browser's separate client identity.
 
-Use `--iroh-secret SERVER_KEY` to embed a stable production identity. To keep the key out of the build, bundle with `--iroh-endpoint SERVER_ID` or `--iroh-ticket SERVER_TICKET` and set `TOPCOAT_IROH_SECRET` on the server. A supplied key must match that destination. Repeat `--iroh-peer CLIENT_ID` to restrict access to listed clients.
-
-With none of these destination or secret switches, the CLI generates or reuses a key in `target/` and warns that `cargo clean` permanently removes the saved key. Keep a stable production key outside the build directory.
-
-The browser creates its own identity, or uses a client key from `#secret=...`. Links can override the server with `#endpoint=...` or `#ticket=...`; combine fragment fields with `&`.
+With none of those three switches, the CLI saves and reuses a generated key in `target/` and warns that `cargo clean` permanently deletes the saved key. Keep production keys elsewhere. Without a saved or supplied peer allowlist, all clients can connect. See the [launcher guide](docs/launcher.md) for identity and allowlist persistence.
 
 ## Make the welcome screen yours (optional)
 
