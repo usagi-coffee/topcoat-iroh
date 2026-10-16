@@ -5,7 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{sync::mpsc, task::JoinSet};
-use topcoat_core::context::Cx;
+use topcoat_core::context::{Cx, RequestContext};
 use topcoat_router::{
     Body, HeaderMap, HeaderName, HeaderValue, Method, RemoteAddr, Router, Uri,
     content::ViewResponseDelivery,
@@ -94,6 +94,10 @@ pub(crate) struct RenderConnection {
     /// `Accept-Encoding` removed.
     headers: HeaderMap,
     remote: Option<RemoteAddr>,
+    #[cfg(feature = "iroh")]
+    iroh_peer: Option<topcoat_router::IrohPeer>,
+    #[cfg(feature = "iroh")]
+    iroh_transport: Option<crate::IrohTransport>,
 }
 
 impl RenderConnection {
@@ -117,6 +121,10 @@ impl RenderConnection {
             router: router(cx),
             headers,
             remote: extensions(cx).get::<RemoteAddr>().copied(),
+            #[cfg(feature = "iroh")]
+            iroh_peer: topcoat_core::context::try_request_context(cx).copied(),
+            #[cfg(feature = "iroh")]
+            iroh_transport: topcoat_core::context::try_request_context(cx).cloned(),
         }
     }
 
@@ -158,10 +166,18 @@ impl RenderConnection {
             let _ = out.send(error.to_message(id)).await;
             return;
         };
-        let response = self
-            .router
-            .handle_with(request, (ConnectedRender, ViewResponseDelivery::Frames))
-            .await;
+        let mut values = RequestContext::new();
+        values.insert(ConnectedRender);
+        values.insert(ViewResponseDelivery::Frames);
+        #[cfg(feature = "iroh")]
+        if let Some(peer) = self.iroh_peer {
+            values.insert(peer);
+        }
+        #[cfg(feature = "iroh")]
+        if let Some(transport) = &self.iroh_transport {
+            values.insert(transport.clone());
+        }
+        let response = self.router.handle_with(request, values).await;
 
         let status = response.status();
         if status.is_redirection()

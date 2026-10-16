@@ -15,7 +15,7 @@ use iroh::{
 use serde::{Deserialize, Serialize};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use topcoat_core::{
-    context::{Cx, try_app_context},
+    context::{Cx, try_app_context, try_request_context},
     error::Result,
 };
 use topcoat_router::{
@@ -59,6 +59,13 @@ pub struct IrohTransport {
 }
 
 impl IrohTransport {
+    /// The transport supplied by iroh startup or registered on the router.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn from_context(cx: &Cx) -> Option<&Self> {
+        try_request_context(cx).or_else(|| try_app_context(cx))
+    }
+
     /// Creates a transport using `endpoint` and the URL of the generated
     /// `topcoat_runtime_iroh_browser.js` module. Serve its companion Wasm
     /// file beside it. The module is loaded only when a live render connects.
@@ -85,7 +92,7 @@ impl IrohTransport {
     }
 
     pub(crate) async fn bootstrap(cx: &Cx, body: Body) -> Result<Response> {
-        let Some(transport) = try_app_context::<Self>(cx) else {
+        let Some(transport) = Self::from_context(cx) else {
             return StatusCode::NOT_FOUND.into_response(cx);
         };
         let Json(peer) = Json::<EndpointId>::from_request(cx, body).await?;

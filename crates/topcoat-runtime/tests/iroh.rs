@@ -18,16 +18,16 @@ use serde_json::{Value, json};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use topcoat::{
     Result,
-    context::{Cx, app_context},
+    context::{Cx, app_context, request_context},
     router::{
-        Body, Router,
+        Body, IrohPeer, Router,
         error::forbidden,
         page,
         request::{Request, headers},
         to_bytes,
     },
     runtime::{connected, shard},
-    view::{View, emit, live},
+    view::{View, emit, live, view},
 };
 use topcoat_runtime::{IROH_RUNTIME_ALPN, IrohTransport, RouterBuilderRuntimeExt};
 
@@ -37,6 +37,13 @@ impl Drop for Active {
     fn drop(&mut self) {
         self.0.fetch_sub(1, Ordering::SeqCst);
     }
+}
+
+#[page("/identity")]
+async fn identity(cx: &Cx) -> Result<impl View> {
+    let peer = request_context::<IrohPeer>(cx).0;
+    assert!(IrohTransport::from_context(cx).is_some());
+    Ok(view! { <p>(peer.to_string())</p> })
 }
 
 #[page("/room")]
@@ -262,4 +269,59 @@ async fn tickets_require_the_http_origin_and_bound_peer_and_cannot_be_replayed()
     listener.shutdown().await.unwrap();
     peer.close().await;
     stranger.close().await;
+}
+
+#[tokio::test]
+async fn connected_renders_preserve_the_authenticated_launcher_peer() {
+    for request_transport in [false, true] {
+        let launcher_peer = iroh::SecretKey::from_bytes(&[17; 32]).public();
+        let server = Endpoint::bind(presets::Minimal).await.unwrap();
+        let transport = IrohTransport::new(server.clone(), "/iroh/browser.js");
+        let listener = iroh::protocol::Router::builder(server.clone())
+            .accept(IROH_RUNTIME_ALPN, transport.clone())
+            .spawn();
+        let builder = Router::builder().page(identity).runtime();
+        let router = if request_transport {
+            builder
+        } else {
+            builder.app_context(transport.clone())
+        }
+        .build();
+        let runtime_peer = Endpoint::bind(presets::Minimal).await.unwrap();
+        assert_ne!(launcher_peer, runtime_peer.id());
+        let mut context = topcoat::context::RequestContext::new();
+        context.insert(IrohPeer(launcher_peer));
+        if request_transport {
+            context.insert(transport);
+        }
+        let response = router
+            .handle_with(
+                Request::builder()
+                    .method("POST")
+                    .uri("/identity")
+                    .header("content-type", "application/json")
+                    .header("x-topcoat-iroh", "true")
+                    .body(Body::from(json!(runtime_peer.id()).to_string()))
+                    .unwrap(),
+                context,
+            )
+            .await;
+        assert_eq!(response.status(), 200);
+        let bootstrap: Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
+        let mut client = Client::connect(&runtime_peer, server.addr(), &bootstrap["ticket"]).await;
+        client
+            .send(json!({"run":1,"method":"GET","path":"/identity"}))
+            .await;
+        let frame = client.frame().await;
+        assert_eq!(frame["frame"]["t"], "snapshot");
+        assert!(
+            frame["frame"]["html"]
+                .as_str()
+                .unwrap()
+                .contains(&launcher_peer.to_string())
+        );
+        listener.shutdown().await.unwrap();
+        runtime_peer.close().await;
+    }
 }

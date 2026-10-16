@@ -11,7 +11,7 @@ categories.workspace = true
 rust-version.workspace = true
 
 [features]
-iroh = ["router", "dep:iroh", "dep:bytes", "dep:tokio-util", "dep:uuid", "tokio/time"]
+iroh = ["router", "topcoat-router/iroh", "dep:iroh", "dep:bytes", "dep:tokio-util", "dep:uuid", "tokio/time"]
 router = [
 	"dep:futures-util",
 	"dep:pin-project-lite",
