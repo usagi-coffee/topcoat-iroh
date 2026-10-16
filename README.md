@@ -37,9 +37,16 @@ target/release/
 
 Host `launcher/` at the root of a dedicated origin, such as a GitHub Pages user site or custom domain. Open that URL to connect. Both browser and server need relay access; the Rust app needs no public HTTP port. Ordinary `cargo run` and `topcoat dev` keep HTTP.
 
-For production, use a stable `--iroh-secret`, or bundle with `--iroh-endpoint` / `--iroh-ticket` and set `TOPCOAT_IROH_SECRET` on the server. A key that does not match the destination fails bundling or startup. Server keys stay out of the launcher; `#secret` selects the browser's separate client identity.
+Common scenarios:
 
-With none of those three switches, the CLI saves and reuses a generated key in `target/` and warns that `cargo clean` permanently deletes the saved key. Keep production keys elsewhere. Without a saved or supplied peer allowlist, all clients can connect. See the [launcher guide](docs/launcher.md) for identity and allowlist persistence.
+- **No switches:** `topcoat bundle` generates or reuses a key in `target/`, embeds it in the server, and configures the launcher. **Do not use this in production unless you keep the same key outside `target/` and supply it through `TOPCOAT_IROH_SECRET` at runtime.** Bundling warns that `cargo clean` permanently deletes the saved key. The environment variable is not read during bundling.
+- **Secret only:** `topcoat bundle --iroh-secret KEY` embeds your stable server key and derives the launcher's public endpoint. Keep your production key outside `target/`.
+- **Endpoint only:** `topcoat bundle --iroh-endpoint ID` embeds no key. Set `TOPCOAT_IROH_SECRET` on the server; startup fails if it is missing or does not match `ID`.
+- **Ticket only:** `topcoat bundle --iroh-ticket TICKET` works like endpoint-only, using the ticket's endpoint and connection information. The runtime key must match the endpoint inside the ticket.
+- **Secret plus endpoint or ticket:** add `--iroh-endpoint ID` or `--iroh-ticket TICKET` to `topcoat bundle --iroh-secret KEY`. The key is embedded, and bundling fails if the supplied destination does not match it.
+- **Restricted access:** add `--iroh-peer CLIENT_ID` to any scenario, repeating it for more clients. Used alone, it keeps the automatic key behavior. Without a saved or supplied allowlist, all clients can connect.
+
+`--iroh-endpoint` and `--iroh-ticket` are mutually exclusive. Server keys stay out of the launcher; `#secret` selects the browser's separate client identity. See the [launcher guide](docs/launcher.md) for key and allowlist persistence.
 
 ## Make the welcome screen yours (optional)
 
