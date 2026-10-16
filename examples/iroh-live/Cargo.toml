@@ -1,0 +1,13 @@
+[package]
+name = "iroh-live"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+iroh = { workspace = true, features = ["tls-ring"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+topcoat = { workspace = true, features = ["runtime-iroh", "fs"] }
+
+[lints]
+workspace = true

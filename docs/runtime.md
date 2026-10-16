@@ -303,3 +303,7 @@ Use `.get_untracked()` or `.read_untracked()` to read a value on the server with
 [`view!`]: ../view/macro.view.html
 [procedure]: attr.procedure.html
 [shard]: attr.shard.html
+
+# Iroh Transport
+
+Enable `runtime-iroh` to carry connected page and shard updates over iroh. Register `IrohTransport` in app context and on an iroh protocol router, and serve the browser Wasm bindings. See the [iroh transport guide](https://github.com/tokio-rs/topcoat/blob/main/docs/runtime/iroh.md) for setup and the [live guide](https://docs.rs/topcoat/latest/topcoat/view/macro.live.html) for rendering behavior.

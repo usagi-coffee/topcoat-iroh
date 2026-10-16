@@ -49,6 +49,8 @@ members = [
     "examples/htmx",
     "examples/icon",
     "examples/live",
+    "examples/iroh-live",
+    "examples/iroh-app",
     "examples/mail",
     "examples/manual-router",
     "examples/module-router",

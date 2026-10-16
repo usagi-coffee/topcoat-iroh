@@ -230,3 +230,13 @@ version_group = "topcoat"
 name = "topcoat-runtime-iroh-browser"
 release = false
 publish = false
+
+[[package]]
+name = "iroh-live"
+release = false
+publish = false
+
+[[package]]
+name = "iroh-app"
+release = false
+publish = false

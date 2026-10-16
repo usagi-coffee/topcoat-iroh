@@ -1,5 +1,7 @@
 The optional iroh transport carries connected page and shard renders over [iroh](https://iroh.computer). Existing `live!`, `emit!`, and `connected(cx)` calls work unchanged. Initial pages, assets, navigation, and procedure calls still use HTTP.
 
+To load the entire app from a static host while the Rust server runs on a private network, use the [static iroh launcher](https://github.com/tokio-rs/topcoat/blob/main/docs/router/iroh.md). Its Wasm transport also carries the initial page, assets, ordinary requests, and this transport's bootstrap.
+
 Enable `runtime-iroh` in your `topcoat` dependency and add `iroh = "1.3"`. Use a native Rust server. Browsers run the transport through a separate Wasm module and connect through iroh relays. The relay cannot decrypt the connection. Native iroh clients can establish direct connections.
 
 # Browser Module
