@@ -44,6 +44,7 @@ full = [
 	"multipart",
 	"router",
 	"runtime",
+	"runtime-iroh",
 	"serve",
 	"session",
 	"sitemap",
@@ -147,6 +148,7 @@ runtime = [
 	"dep:topcoat-runtime",
 	"dep:topcoat-runtime-macro",
 ]
+runtime-iroh = ["runtime", "router", "topcoat-runtime/iroh"]
 session = [
 	"dep:topcoat-session",
 ]

@@ -11,6 +11,7 @@ categories.workspace = true
 rust-version.workspace = true
 
 [features]
+iroh = ["router", "dep:iroh", "dep:bytes", "dep:tokio-util", "dep:uuid", "tokio/time"]
 router = [
 	"dep:futures-util",
 	"dep:pin-project-lite",
@@ -35,10 +36,16 @@ topcoat-router = { workspace = true, optional = true, features = ["websocket"] }
 
 futures-util = { workspace = true, optional = true, features = ["sink"] }
 tokio = { workspace = true, optional = true, features = ["rt", "sync", "macros"] }
+iroh = { workspace = true, optional = true, features = ["tls-ring"] }
+bytes = { workspace = true, optional = true }
+tokio-util = { workspace = true, optional = true, features = ["codec"] }
+uuid = { workspace = true, optional = true, features = ["v4", "serde"] }
 
 [dev-dependencies]
 # We cannot use `workspace = true` with `default-features = false`.
-topcoat = { path = "../topcoat", default-features = false, features = ["asset", "router", "runtime", "view"] }
+topcoat = { path = "../topcoat", default-features = false, features = ["asset", "router", "runtime", "view", "fs"] }
+
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 
 [lints]
 workspace = true

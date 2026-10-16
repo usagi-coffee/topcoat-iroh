@@ -32,6 +32,9 @@ pub const RUNTIME_PROTOCOL: &str = "topcoat-runtime";
 ///   [`max_runs_per_connection`](crate::RouterBuilderRuntimeExt::max_runs_per_connection) renders
 ///   at once.
 ///
+/// With the `iroh` feature, an `X-Topcoat-Iroh: true` POST bootstraps the
+/// configured iroh transport using the HTTP request's credentials.
+///
 /// WebSocket connections are supported on native servers. HTTP page reruns
 /// are also available on WebAssembly.
 ///
@@ -51,6 +54,10 @@ impl Layer for RuntimeLayer {
     }
 
     fn handle<'a>(&'a self, cx: &'a Cx, body: Body, next: Next<'a>) -> LayerFuture<'a> {
+        #[cfg(all(feature = "iroh", not(target_family = "wasm")))]
+        if crate::IrohTransport::requested(cx) {
+            return Box::pin(crate::IrohTransport::bootstrap(cx, body));
+        }
         #[cfg(not(target_family = "wasm"))]
         if socket::requested(cx) {
             return Box::pin(socket::accept(cx, body));

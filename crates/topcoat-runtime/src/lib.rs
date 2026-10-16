@@ -7,6 +7,8 @@ mod event_handler;
 mod expr;
 #[doc(hidden)]
 pub mod internal;
+#[cfg(all(feature = "iroh", not(target_family = "wasm")))]
+mod iroh_transport;
 mod js;
 #[cfg(feature = "router")]
 mod layer;
@@ -27,6 +29,8 @@ pub use bind_attribute::*;
 pub use connection::*;
 pub use event_handler::*;
 pub use expr::*;
+#[cfg(all(feature = "iroh", not(target_family = "wasm")))]
+pub use iroh_transport::*;
 pub use js::*;
 #[cfg(feature = "router")]
 pub use layer::*;
