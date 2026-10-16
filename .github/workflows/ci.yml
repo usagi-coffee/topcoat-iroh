@@ -141,6 +141,7 @@ jobs:
       - run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
       - run: wasm-bindgen --target web --out-dir target/iroh-browser target/wasm32-unknown-unknown/release/topcoat_runtime_iroh_browser.wasm
       - run: bash scripts/build-iroh-launcher.sh
+      - run: cargo run -p topcoat-cli --bin topcoat --locked -- bundle -p iroh-app --profile dev
 
   runtime:
     name: runtime
@@ -162,6 +163,8 @@ jobs:
       - run: git diff --exit-code -- dist/index.js dist/coherence.js
       - run: yarn test
       - run: node ../iroh-browser/launcher/transport.test.js
+      - run: node ../iroh-browser/launcher/fragment.test.js
+      - run: node ../iroh-browser/launcher/settings.test.js
 
   dev:
     name: dev
