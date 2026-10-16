@@ -43,6 +43,14 @@ pub struct RouterService {
 }
 
 impl RouterService {
+    /// The router and shutdown timeout used by the facade's iroh startup.
+    #[doc(hidden)]
+    #[cfg(all(feature = "iroh", not(target_family = "wasm")))]
+    #[must_use]
+    pub fn into_iroh_parts(self) -> (Router, Duration) {
+        ((*self.router).clone(), self.shutdown_timeout)
+    }
+
     /// Wraps `router` in a cloneable service with the default configuration.
     #[must_use]
     pub fn new(router: Router) -> Self {

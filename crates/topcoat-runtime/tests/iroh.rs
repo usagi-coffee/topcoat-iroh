@@ -276,7 +276,8 @@ async fn connected_renders_preserve_the_authenticated_launcher_peer() {
     for request_transport in [false, true] {
         let launcher_peer = iroh::SecretKey::from_bytes(&[17; 32]).public();
         let server = Endpoint::bind(presets::Minimal).await.unwrap();
-        let transport = IrohTransport::new(server.clone(), "/iroh/browser.js");
+        let transport =
+            IrohTransport::new(server.clone(), "/iroh/browser.js").allow_peers([launcher_peer]);
         let listener = iroh::protocol::Router::builder(server.clone())
             .accept(IROH_RUNTIME_ALPN, transport.clone())
             .spawn();
@@ -294,6 +295,21 @@ async fn connected_renders_preserve_the_authenticated_launcher_peer() {
         if request_transport {
             context.insert(transport);
         }
+        let mut denied_context = context.clone();
+        denied_context.insert(IrohPeer(runtime_peer.id()));
+        let denied = router
+            .handle_with(
+                Request::builder()
+                    .method("POST")
+                    .uri("/identity")
+                    .header("content-type", "application/json")
+                    .header("x-topcoat-iroh", "true")
+                    .body(Body::from(json!(runtime_peer.id()).to_string()))
+                    .unwrap(),
+                denied_context,
+            )
+            .await;
+        assert_eq!(denied.status(), 403);
         let response = router
             .handle_with(
                 Request::builder()

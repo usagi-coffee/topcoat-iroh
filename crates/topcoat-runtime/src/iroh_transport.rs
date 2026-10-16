@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt, io,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
@@ -56,6 +56,7 @@ pub struct IrohTransport {
     endpoint: Endpoint,
     browser_module: String,
     tickets: Arc<Mutex<HashMap<Uuid, Ticket>>>,
+    peers: Arc<HashSet<EndpointId>>,
 }
 
 impl IrohTransport {
@@ -75,7 +76,17 @@ impl IrohTransport {
             endpoint,
             browser_module: browser_module.into(),
             tickets: Arc::default(),
+            peers: Arc::default(),
         }
+    }
+
+    /// Allows live bootstraps only from these authenticated app peers.
+    /// An empty list allows all peers. Runtime connections still need a
+    /// single-use ticket bound to their own endpoint identity.
+    #[must_use]
+    pub fn allow_peers(mut self, peers: impl IntoIterator<Item = EndpointId>) -> Self {
+        self.peers = Arc::new(peers.into_iter().collect());
+        self
     }
 
     /// The URL of the browser's Wasm binding module.
@@ -95,6 +106,12 @@ impl IrohTransport {
         let Some(transport) = Self::from_context(cx) else {
             return StatusCode::NOT_FOUND.into_response(cx);
         };
+        if !transport.peers.is_empty()
+            && try_request_context::<topcoat_router::IrohPeer>(cx)
+                .is_none_or(|peer| !transport.peers.contains(&peer.0))
+        {
+            return StatusCode::FORBIDDEN.into_response(cx);
+        }
         let Json(peer) = Json::<EndpointId>::from_request(cx, body).await?;
         let now = Instant::now();
         let mut tickets = transport.tickets.lock().expect("ticket lock poisoned");
@@ -108,6 +125,7 @@ impl IrohTransport {
             Ticket {
                 created: now,
                 peer,
+                app_peer: try_request_context::<topcoat_router::IrohPeer>(cx).map(|peer| peer.0),
                 connection: Arc::new(RenderConnection::from_handshake(cx)),
                 max_runs: try_app_context::<MaxRunsPerConnection>(cx)
                     .map_or(DEFAULT_MAX_RUNS_PER_CONNECTION, |max| max.0),
@@ -140,6 +158,7 @@ impl IrohTransport {
         if let Some(ticket) = tickets.get(&id)
             && ticket.peer == peer
             && ticket.created.elapsed() < TICKET_LIFETIME
+            && self.permits(ticket)
         {
             return Ok(tickets.remove(&id).expect("ticket exists"));
         }
@@ -147,6 +166,13 @@ impl IrohTransport {
             io::ErrorKind::PermissionDenied,
             "invalid transport ticket",
         ))
+    }
+
+    fn permits(&self, ticket: &Ticket) -> bool {
+        self.peers.is_empty()
+            || ticket
+                .app_peer
+                .is_some_and(|peer| self.peers.contains(&peer))
     }
 
     async fn serve(&self, connection: &Connection) -> std::result::Result<(), AcceptError> {
@@ -190,6 +216,21 @@ impl fmt::Debug for IrohTransport {
 
 impl ProtocolHandler for IrohTransport {
     async fn accept(&self, connection: Connection) -> std::result::Result<(), AcceptError> {
+        if !self.peers.is_empty()
+            && !self
+                .tickets
+                .lock()
+                .expect("ticket lock poisoned")
+                .values()
+                .any(|ticket| {
+                    ticket.peer == connection.remote_id()
+                        && ticket.created.elapsed() < TICKET_LIFETIME
+                        && self.permits(ticket)
+                })
+        {
+            connection.close(403u32.into(), b"peer not allowed");
+            return Ok(());
+        }
         let result = self.serve(&connection).await;
         connection.close(0u32.into(), b"runtime session ended");
         result
@@ -199,6 +240,7 @@ impl ProtocolHandler for IrohTransport {
 struct Ticket {
     created: Instant,
     peer: EndpointId,
+    app_peer: Option<EndpointId>,
     connection: Arc<RenderConnection>,
     max_runs: usize,
 }

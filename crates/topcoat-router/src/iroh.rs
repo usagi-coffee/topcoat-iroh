@@ -1,4 +1,4 @@
-use std::{io, sync::Arc, time::Duration};
+use std::{collections::HashSet, io, sync::Arc, time::Duration};
 
 use futures_util::StreamExt;
 use http_body::Frame;
@@ -11,6 +11,7 @@ use iroh::{
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinSet;
 use tokio_util::io::ReaderStream;
+use topcoat_core::context::RequestContext;
 
 use crate::{Body, HeaderName, HeaderValue, Method, Router, Uri, header, request::Request};
 
@@ -34,16 +35,37 @@ const HEAD_TIMEOUT: Duration = Duration::from_secs(30);
 pub struct IrohService {
     router: Arc<Router>,
     max_requests: usize,
+    context: RequestContext,
+    peers: Arc<HashSet<EndpointId>>,
 }
 
 impl IrohService {
     /// Creates a service allowing up to 128 concurrent requests per connection.
     #[must_use]
     pub fn new(router: Router) -> Self {
+        // Let the CLI detect static launcher support in optimized executables.
+        std::hint::black_box(b"\0TOPCOAT_IROH_HTTP_V1\0");
         Self {
             router: Arc::new(router),
             max_requests: 128,
+            context: RequestContext::new(),
+            peers: Arc::default(),
         }
+    }
+
+    /// Supplies a context value to requests arriving over this service.
+    /// The authenticated [`IrohPeer`] always comes from the connection.
+    #[must_use]
+    pub fn request_context<T: Send + Sync + 'static>(mut self, value: T) -> Self {
+        self.context.insert(value);
+        self
+    }
+
+    /// Allows only these client endpoint identities. An empty list allows all peers.
+    #[must_use]
+    pub fn allow_peers(mut self, peers: impl IntoIterator<Item = EndpointId>) -> Self {
+        self.peers = Arc::new(peers.into_iter().collect());
+        self
     }
 
     /// Sets the maximum number of concurrent requests per connection.
@@ -56,6 +78,7 @@ impl IrohService {
 
     async fn request(
         router: Arc<Router>,
+        mut context: RequestContext,
         peer: EndpointId,
         mut send: SendStream,
         mut receive: RecvStream,
@@ -87,7 +110,8 @@ impl IrohService {
             .await
             .map_err(io::Error::other)??;
             let request = head.request(receive)?;
-            let response = router.handle_with(request, (IrohPeer(peer),)).await;
+            context.insert(IrohPeer(peer));
+            let response = router.handle_with(request, context).await;
             let head = ResponseHead {
                 status: response.status().as_u16(),
                 headers: response
@@ -140,6 +164,10 @@ impl std::fmt::Debug for IrohService {
 
 impl ProtocolHandler for IrohService {
     async fn accept(&self, connection: Connection) -> Result<(), AcceptError> {
+        if !self.peers.is_empty() && !self.peers.contains(&connection.remote_id()) {
+            connection.close(403u32.into(), b"peer not allowed");
+            return Ok(());
+        }
         let mut requests = JoinSet::new();
         loop {
             let incoming = tokio::select! {
@@ -157,6 +185,7 @@ impl ProtocolHandler for IrohService {
             }
             requests.spawn(Self::request(
                 Arc::clone(&self.router),
+                self.context.clone(),
                 connection.remote_id(),
                 send,
                 receive,

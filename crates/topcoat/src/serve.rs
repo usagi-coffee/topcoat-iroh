@@ -4,6 +4,9 @@ use tokio::net::TcpListener;
 
 use crate::router::{Listener, RouterService, internal_serve};
 
+#[cfg(all(feature = "iroh", not(target_family = "wasm")))]
+mod iroh;
+
 /// Serves a router and notifies the dev server when it is ready.
 ///
 /// Accepts any [`Listener`]. For example, use a Unix socket to receive
@@ -51,9 +54,13 @@ pub async fn serve_until(
     internal_serve(listener, service.into(), signal).await
 }
 
-/// Starts a router on the configured host and port.
+/// Starts a router on the configured host and port, or over iroh when bundled.
 ///
-/// The listener binds to the `HOST` and `PORT` environment variables,
+/// `topcoat bundle` selects iroh startup when the `iroh` feature is enabled.
+/// It serves the router without an HTTP listener. Ordinary builds and
+/// `topcoat dev` use HTTP.
+///
+/// The HTTP listener binds to the `HOST` and `PORT` environment variables,
 /// or `127.0.0.1` and `3000` when unset.
 ///
 /// Uses [`serve`] for graceful shutdown on process signals. To choose a
@@ -64,6 +71,13 @@ pub async fn serve_until(
 /// Returns `Err` if `HOST`/`PORT` are invalid, if binding the TCP listener
 /// fails, or if serving the router fails (see [`serve`]).
 pub async fn start(service: impl Into<RouterService>) -> Result<(), io::Error> {
+    #[cfg(all(feature = "iroh", not(target_family = "wasm")))]
+    {
+        if iroh::configured() {
+            std::hint::black_box(b"\0TOPCOAT_IROH_START_V1\0");
+            return iroh::start(service.into(), shutdown_signal()).await;
+        }
+    }
     let host = host_from_env()?;
     let port = port_from_env()?;
     let listener = TcpListener::bind((host.as_str(), port)).await?;

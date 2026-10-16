@@ -6307,6 +6307,8 @@ dependencies = [
  "futures-core",
  "futures-util",
  "inventory",
+ "iroh",
+ "iroh-tickets",
  "serde",
  "serde_json",
  "tempfile",

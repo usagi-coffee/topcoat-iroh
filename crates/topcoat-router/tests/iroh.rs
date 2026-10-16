@@ -132,3 +132,31 @@ async fn streams_binary_requests_and_cancels_independent_renders_without_http() 
     endpoint.close().await;
     listener.shutdown().await.unwrap();
 }
+
+#[tokio::test]
+async fn a_peer_allowlist_drops_unlisted_connections() {
+    let server = Endpoint::bind(presets::Minimal).await.unwrap();
+    let allowed = Endpoint::bind(presets::Minimal).await.unwrap();
+    let denied = Endpoint::bind(presets::Minimal).await.unwrap();
+    let listener = iroh::protocol::Router::builder(server.clone())
+        .accept(
+            IROH_HTTP_ALPN,
+            IrohService::new(Router::builder().build()).allow_peers([allowed.id()]),
+        )
+        .spawn();
+    let connection = allowed
+        .connect(server.addr(), IROH_HTTP_ALPN)
+        .await
+        .unwrap();
+    let (mut send, mut receive) = open(&connection, "GET", "/missing").await;
+    send.finish().unwrap();
+    assert_eq!(head(&mut receive).await["status"], 404);
+    if let Ok(connection) = denied.connect(server.addr(), IROH_HTTP_ALPN).await {
+        tokio::time::timeout(Duration::from_secs(5), connection.closed())
+            .await
+            .unwrap();
+    }
+    allowed.close().await;
+    denied.close().await;
+    listener.shutdown().await.unwrap();
+}

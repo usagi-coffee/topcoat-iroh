@@ -13,6 +13,7 @@ readme = "README.md"
 
 [features]
 default = [
+	"iroh",
 	"asset",
 	"compression",
 	"cookie",
@@ -151,7 +152,7 @@ runtime = [
 	"dep:topcoat-runtime-macro",
 ]
 runtime-iroh = ["runtime", "router", "topcoat-runtime/iroh"]
-iroh = ["router", "topcoat-router/iroh"]
+iroh = ["router", "runtime-iroh", "topcoat-router/iroh", "dep:iroh", "dep:iroh-tickets", "dep:serde_json"]
 launcher = ["router", "runtime", "asset", "topcoat-asset/serve", "dep:inventory"]
 session = [
 	"dep:topcoat-session",
@@ -212,6 +213,7 @@ topcoat-view-macro = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
 inventory = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["macros", "net", "signal"] }
 tokio-tungstenite = { workspace = true, optional = true, features = ["connect"] }
 
@@ -222,6 +224,10 @@ serde_json.workspace = true
 tempfile.workspace = true
 uuid = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+iroh = { workspace = true, optional = true, features = ["tls-ring"] }
+iroh-tickets = { workspace = true, optional = true }
 
 [lints]
 workspace = true
