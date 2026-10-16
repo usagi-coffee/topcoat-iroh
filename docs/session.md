@@ -203,6 +203,8 @@ The lifetime becomes both the `Max-Age` of the issued cookie and the `expires_at
 
 # Custom token stores
 
+For the [static iroh launcher](https://github.com/tokio-rs/topcoat/blob/main/docs/router/iroh.md), use `SessionConfig::builder().token_store(HeaderTokenStore).build()`. The launcher carries tokens in headers and stores them in `IndexedDB`. This does not provide the default cookie's `HttpOnly` protection.
+
 A [`TokenStore`] reads tokens from requests and sends token changes to the client. Session records remain in your application's storage. Implement this trait to use another transport, such as an `Authorization` header:
 
 ```rust

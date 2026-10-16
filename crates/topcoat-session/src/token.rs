@@ -1,7 +1,11 @@
 mod hash;
+#[cfg(feature = "router")]
+mod header;
 mod store;
 
 pub use hash::*;
+#[cfg(feature = "router")]
+pub use header::*;
 use sha2::Digest;
 pub use store::*;
 
