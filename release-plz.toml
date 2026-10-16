@@ -225,3 +225,8 @@ version_group = "topcoat"
 name = "topcoat-view-macro"
 release = true
 version_group = "topcoat"
+
+[[package]]
+name = "topcoat-runtime-iroh-browser"
+release = false
+publish = false

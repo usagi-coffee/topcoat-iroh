@@ -6632,6 +6632,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "topcoat-runtime-iroh-browser"
+version = "0.10.0"
+dependencies = [
+ "futures-util",
+ "iroh",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+]
+
+[[package]]
 name = "topcoat-runtime-macro"
 version = "0.10.0"
 dependencies = [
