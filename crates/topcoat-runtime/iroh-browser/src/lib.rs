@@ -1,7 +1,9 @@
 //! Browser bindings for Topcoat's iroh connection transport.
 #![cfg(target_family = "wasm")]
 
+mod http;
 use futures_util::lock::Mutex;
+pub use http::*;
 use iroh::{
     Endpoint, EndpointAddr,
     endpoint::{Connection, RecvStream, SendStream, presets},
