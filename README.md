@@ -12,6 +12,8 @@ Built for personal tools, home servers, live dashboards, and shared apps where t
 
 You deploy a **static launcher** alongside your Rust server. It loads the browser's JavaScript/Wasm transport and connects to the app over iroh. Optionally design an interactive endpoint, ticket, and secret connection screen with `#[launcher]`, in the same Cargo package.
 
+The launcher automatically installs this fork's **service worker**, which forwards normal browser requests through iroh's Wasm client. Pages, assets, forms, and procedures keep their usual URLs while the worker handles the transport.
+
 The application developer experience stays vanilla Topcoat: `view!`, pages, components, procedures, shards, `live!`, and `emit!`.
 
 ## Build and deploy
