@@ -10,6 +10,8 @@ pub mod content;
 mod endpoint;
 pub mod error;
 mod href;
+#[cfg(all(feature = "iroh", not(target_family = "wasm")))]
+mod iroh;
 mod layer;
 #[cfg(feature = "serve")]
 mod listener;
@@ -42,6 +44,8 @@ pub use endpoint::*;
 pub use href::*;
 pub use http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri, header};
 pub use ipnet::{IpNet, Ipv4Net, Ipv6Net};
+#[cfg(all(feature = "iroh", not(target_family = "wasm")))]
+pub use iroh::*;
 pub use layer::*;
 #[cfg(feature = "serve")]
 pub use listener::*;

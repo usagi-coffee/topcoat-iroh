@@ -515,6 +515,8 @@ The socket file of a previous run is not removed automatically, so remove any st
 
 The HTTP server requires the `serve` feature, which is enabled by default. When another platform receives requests for you, call [`Router::handle`] to turn a [`Request`](request::Request) into a [`Response`](response::Response). This works without `serve`.
 
+With the `iroh` feature, `IrohService` serves app requests over iroh to a [statically hosted browser launcher](https://github.com/tokio-rs/topcoat/blob/main/docs/router/iroh.md). The app process needs no public HTTP listener.
+
 # Tower services
 
 With the `tower` feature enabled, the [`tower`](mod@tower) module bridges the tower ecosystem: [`TowerRoute`](tower::TowerRoute) mounts a tower service (like an axum router) as a route, and [`TowerLayer`](tower::TowerLayer) runs tower middleware as a layer. See the [`tower`](mod@tower) module docs for details.

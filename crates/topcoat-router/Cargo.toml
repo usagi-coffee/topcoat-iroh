@@ -11,6 +11,7 @@ categories.workspace = true
 rust-version.workspace = true
 
 [features]
+iroh = ["dep:iroh", "dep:tokio", "dep:tokio-util", "tokio/rt", "tokio/macros", "tokio/time"]
 compression = [
 	"dep:tower",
 	"dep:tower-http",
@@ -109,6 +110,9 @@ tower-http = { workspace = true, features = [
 	"timeout",
 	"trace",
 ] }
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+iroh = { workspace = true, optional = true, features = ["tls-ring"] }
 
 [lints]
 workspace = true

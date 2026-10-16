@@ -39,6 +39,7 @@ full = [
 	"htmx",
 	"icon",
 	"icon-iconify",
+	"iroh",
 	"mail",
 	"mail-smtp",
 	"multipart",
@@ -149,6 +150,7 @@ runtime = [
 	"dep:topcoat-runtime-macro",
 ]
 runtime-iroh = ["runtime", "router", "topcoat-runtime/iroh"]
+iroh = ["router", "topcoat-router/iroh"]
 session = [
 	"dep:topcoat-session",
 ]
