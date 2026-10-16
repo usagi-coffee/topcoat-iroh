@@ -96,6 +96,16 @@ impl Metadata {
         self.default_run(package)
     }
 
+    /// The package selected by a build.
+    pub fn build_package(&self, package: Option<&str>) -> Option<String> {
+        let name = match package {
+            Some(name) => name,
+            None => self.package_containing_dir(&std::env::current_dir().ok()?)?,
+        };
+        self.package(name)?;
+        Some(name.to_owned())
+    }
+
     fn package(&self, name: &str) -> Option<&serde_json::Value> {
         self.0["packages"]
             .as_array()?

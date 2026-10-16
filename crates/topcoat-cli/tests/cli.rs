@@ -7,7 +7,12 @@ fn help_and_version_accept_cargo_and_direct_invocations() {
         (env!("CARGO_BIN_EXE_cargo-topcoat"), &[][..]),
         (env!("CARGO_BIN_EXE_cargo-topcoat"), &["topcoat"][..]),
     ] {
-        for args in [&["--help"][..], &["--version"][..], &["fmt", "--help"][..]] {
+        for args in [
+            &["--help"][..],
+            &["--version"][..],
+            &["fmt", "--help"][..],
+            &["bundle", "--help"][..],
+        ] {
             let output = Command::new(binary)
                 .args(prefix)
                 .args(args)

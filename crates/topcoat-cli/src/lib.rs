@@ -1,6 +1,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod asset;
+mod bundle;
 mod common;
 mod dev;
 mod fmt;
@@ -24,6 +25,7 @@ impl TopcoatCli {
             Command::Fmt(cmd) => cmd.run().await,
             Command::Dev(cmd) => cmd.run().await,
             Command::Asset(cmd) => cmd.run().await,
+            Command::Bundle(cmd) => cmd.run().await,
         }
     }
 }
@@ -40,6 +42,8 @@ enum Command {
     Asset(asset::AssetCommand),
     /// Manage premade UI components in your project
     Ui(ui::UiCommand),
+    /// Build a server, assets, and optional static launcher (release by default)
+    Bundle(bundle::BundleCommand),
 }
 
 pub async fn run() {

@@ -18,6 +18,8 @@ pub struct BuildOpts {
     pub package: Option<String>,
     /// The cargo profile to build with, or `None` for the default (`dev`).
     pub profile: Option<String>,
+    /// Server identity and access settings embedded for bundled iroh startup.
+    pub iroh: Option<String>,
 }
 
 impl BuildOpts {
@@ -100,6 +102,9 @@ impl BuildOpts {
         cmd.args(["build", "--message-format=json-diagnostic-rendered-ansi"]);
         cmd.env("CARGO_TERM_PROGRESS_WHEN", "always");
         cmd.env("CARGO_TERM_PROGRESS_WIDTH", "80");
+        if let Some(settings) = &self.iroh {
+            cmd.env("TOPCOAT_BUNDLE_IROH", settings);
+        }
         if let Some(bin) = &self.bin {
             cmd.args(["--bin", bin]);
         }
@@ -145,6 +150,7 @@ impl From<BuildFlags> for BuildOpts {
             bin: flags.bin,
             package: flags.package,
             profile,
+            iroh: None,
         }
     }
 }
