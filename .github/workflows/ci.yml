@@ -136,6 +136,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo check -p topcoat --target wasm32-unknown-unknown --no-default-features --features router,view,runtime,asset,cookie,session,discover,multipart,tower --locked
       - run: cargo clippy -p cloudflare-worker --target wasm32-unknown-unknown --locked -- -D warnings
+      - run: cargo clippy -p topcoat-runtime-iroh-browser --target wasm32-unknown-unknown --locked -- -D warnings
+      - run: cargo build -p topcoat-runtime-iroh-browser --target wasm32-unknown-unknown --release --locked
+      - run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
+      - run: wasm-bindgen --target web --out-dir target/iroh-browser target/wasm32-unknown-unknown/release/topcoat_runtime_iroh_browser.wasm
+      - run: bash scripts/build-iroh-launcher.sh
 
   runtime:
     name: runtime
@@ -156,6 +161,7 @@ jobs:
       - run: yarn build
       - run: git diff --exit-code -- dist/index.js dist/coherence.js
       - run: yarn test
+      - run: node ../iroh-browser/launcher/transport.test.js
 
   dev:
     name: dev
