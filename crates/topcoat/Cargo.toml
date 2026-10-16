@@ -40,6 +40,7 @@ full = [
 	"icon",
 	"icon-iconify",
 	"iroh",
+	"launcher",
 	"mail",
 	"mail-smtp",
 	"multipart",
@@ -151,6 +152,7 @@ runtime = [
 ]
 runtime-iroh = ["runtime", "router", "topcoat-runtime/iroh"]
 iroh = ["router", "topcoat-router/iroh"]
+launcher = ["router", "runtime", "asset", "topcoat-asset/serve", "dep:inventory"]
 session = [
 	"dep:topcoat-session",
 ]
@@ -217,6 +219,7 @@ tokio-tungstenite = { workspace = true, optional = true, features = ["connect"] 
 futures-core.workspace = true
 futures-util.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 uuid = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 

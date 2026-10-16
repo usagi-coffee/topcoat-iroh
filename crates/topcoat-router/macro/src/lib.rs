@@ -3,6 +3,17 @@
 use proc_macro::TokenStream;
 use quote::quote;
 
+/// Registers a build-time connection view without adding an application route.
+///
+/// Enable the facade's `launcher` feature and see `topcoat::launcher` for usage.
+#[proc_macro_attribute]
+pub fn launcher(attr: TokenStream, item: TokenStream) -> TokenStream {
+    match topcoat_router_grammar::launcher::Launcher::parse(attr.into(), item.into()) {
+        Ok(value) => quote! { #value }.into(),
+        Err(error) => error.to_compile_error().into(),
+    }
+}
+
 #[doc = include_str!("../docs/page.md")]
 #[proc_macro_attribute]
 pub fn page(attr: TokenStream, item: TokenStream) -> TokenStream {

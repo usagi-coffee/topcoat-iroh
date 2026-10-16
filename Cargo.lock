@@ -6309,6 +6309,7 @@ dependencies = [
  "inventory",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tokio-tungstenite",
  "topcoat-alpine-ajax",

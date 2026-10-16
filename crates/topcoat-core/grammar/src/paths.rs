@@ -155,6 +155,10 @@ pub const topcoat_internal: Crate = Crate::new("internal", "topcoat-core", "inte
 #[allow(non_upper_case_globals)]
 pub const topcoat_inventory: Crate = Crate::new("internal::inventory", "inventory", "");
 
+/// The optional launcher API on the facade.
+#[allow(non_upper_case_globals)]
+pub const topcoat_launcher: Crate = Crate::new("launcher", "topcoat", "launcher");
+
 /// `::topcoat::internal::serde`, or the standalone `serde` crate that the facade
 /// re-exports there.
 #[allow(non_upper_case_globals)]

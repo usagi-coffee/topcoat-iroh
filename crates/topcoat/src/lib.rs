@@ -26,6 +26,12 @@ pub mod context;
 
 pub mod core;
 
+#[cfg(feature = "launcher")]
+pub mod launcher;
+
+#[cfg(feature = "launcher")]
+pub use topcoat_router_macro::launcher;
+
 #[cfg(feature = "datastar")]
 pub mod datastar;
 
