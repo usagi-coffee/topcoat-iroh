@@ -2,7 +2,7 @@
 
 Read [`llms.txt`](llms.txt) for Topcoat's APIs and application conventions. Consult the relevant linked guide before changing a feature, and update `llms.txt` when its guidance is affected.
 
-Read [`REBASE.md`](REBASE.md) before changing the iroh integration or rebasing this fork onto upstream Topcoat. Keep its patch map and upstream base current. Prefix fork commits with `iroh! <type>:`, such as `iroh! feat:` or `iroh! fix:`.
+Read [`REBASE.md`](REBASE.md) before changing the iroh integration or rebasing this fork onto upstream Topcoat. After every rebase, update its upstream base, commands, and patch map, and commit that update as the final commit on top of the rebased series. Do not list the commit updating `REBASE.md` in `REBASE.md` itself. Prefix fork commits with `iroh! <type>:`, such as `iroh! feat:` or `iroh! fix:`.
 
 - Unsafe code is not allowed.
 - Macro-body formatters live behind each grammar crate's `pretty` feature and are used by `topcoat fmt`.

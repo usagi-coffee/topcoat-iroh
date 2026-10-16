@@ -20,7 +20,6 @@ Keep the patches in the following order. Commit subjects are stable labels; thei
 | 8 | `feat: add the static browser launcher` | `crates/topcoat-runtime/iroh-browser/launcher/` and `scripts/build-iroh-launcher.sh`. Routes same-origin app requests through Wasm and persists endpoint/session state. Includes transport tests. |
 | 9 | `feat: add runnable iroh examples` | `examples/{iroh-live,iroh-app}/`, `scripts/test-iroh-launcher.mjs`, workspace/release metadata, lockfile, `llms.txt`, and runtime/live guides. Demonstrates both deployment modes. |
 | 10 | `ci: check the wasm transport and launcher` | `.github/workflows/ci.yml`. Builds the bindings and launcher and runs launcher transport tests. |
-| 11 | `docs: document the fork and rebase workflow` | `README.md`, `AGENTS.md`, and this file. Keep the fork notice small and preserve upstream agent instructions. |
 
 New implementation lives mostly in added files. The recurring conflicts are the small insertion points in upstream manifests, module exports, runtime startup, and documentation. Keep those edits focused rather than moving upstream code to avoid a conflict.
 
@@ -49,7 +48,7 @@ git diff --stat origin/main..main
 git log --format='%s' origin/main..main
 ```
 
-Check that only intended fork changes remain and all fork subjects use the `iroh!` prefix. Update this file's base and commands to the upstream revision used for the completed rebase. Keep the recovery branch until the result has been reviewed. Rewriting local history does not require a push; coordinate before replacing a published branch.
+Check that only intended fork changes remain and all fork subjects use the `iroh!` prefix. After every rebase, update this file's upstream base, commands, and patch map to match the resulting history. Commit the update last, on top of the rebased series, without adding that maintenance commit to this file's patch list. Keep the recovery branch until the result has been reviewed. Rewriting local history does not require a push; coordinate before replacing a published branch.
 
 ## Conflict checks
 
