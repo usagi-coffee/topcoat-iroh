@@ -4,7 +4,9 @@ Browsers reach iroh peers through relays. App traffic is encrypted between the b
 
 # Server
 
-Enable `iroh` and `runtime-iroh` on your `topcoat` dependency and add `iroh = "1.3"`. Register `IrohService` for app requests and `IrohTransport` for connected renders on the same endpoint:
+For ordinary applications, use this fork's default features, keep `topcoat::start(router)`, and build with `topcoat bundle`. The CLI enables iroh startup and builds the launcher. See the [launcher guide](../launcher.md) for deployment and server identity.
+
+For a custom server, enable `iroh` and `runtime-iroh` on your `topcoat` dependency and add `iroh = "1.3"`. Register `IrohService` for app requests and `IrohTransport` for connected renders on the same endpoint:
 
 ```rust,no_run
 # async fn example() -> topcoat::Result<()> {
@@ -44,6 +46,16 @@ Include `topcoat::runtime::script()` in interactive pages. The runtime's bootstr
 Configure the endpoint with a persisted secret key if its address must survive restarts. Its public endpoint ID is an address, not an application credential. Routes and layers must authorize requests as usual. `request_context::<IrohPeer>(cx)` exposes the authenticated peer on requests served by `IrohService`.
 
 # Static Launcher
+
+Use this fork's CLI to build a launcher written with `view!` and package it with the server:
+
+```sh
+topcoat bundle
+```
+
+Optionally define a `#[launcher]` view anywhere in the app to customize the connection UI, or use the generated automatic launcher. The CLI embeds the server identity and configures the public endpoint. Use `--iroh-secret` for a stable server key and repeat `--iroh-peer` to restrict access. Publish `target/release/launcher/` and run `target/release/PACKAGE` with its assets beside it. See the [launcher guide](../launcher.md) for the project structure, command options, and client identity handling.
+
+The following low-level workflow builds the standalone HTML launcher used by transport tests:
 
 From the Topcoat checkout, install the Wasm target and the `wasm-bindgen` CLI matching `Cargo.lock`, then build:
 
@@ -93,23 +105,23 @@ Raw WebSocket upgrades are unsupported. Topcoat connected renders use their sepa
 The `iroh-app` example has no HTTP listener. It demonstrates pages, a bundled stylesheet, a procedure, a shard, live updates, binary uploads, and sessions.
 
 ```sh
-cargo topcoat asset bundle -p iroh-app
-cargo run -p iroh-app
+cargo topcoat bundle -p iroh-app --profile dev
+./target/debug/iroh-app
 ```
 
-In another terminal, build the launcher as above. For local testing, serve only its static output:
+In another terminal, serve only the generated launcher:
 
 ```sh
-python3 -m http.server 8080 --directory target/iroh-launcher
+python3 -m http.server 8080 --directory target/debug/launcher
 ```
 
-Open `http://localhost:8080/#iroh=YOUR_PUBLIC_ENDPOINT_ID` with the address printed by the example. For access from another network, publish the same output at your HTTPS origin. The Rust app can remain on a private network.
+Open `http://localhost:8080` and paste the ticket printed by the example. For access from another network, publish the same output at your HTTPS origin. The Rust app can remain on a private network.
 
 To run the browser smoke test, start Chromium with a fresh profile and remote debugging, then run the test with Node.js 22 or newer:
 
 ```sh
 chromium --headless --remote-debugging-port=9398 --user-data-dir=/tmp/topcoat-iroh-test about:blank
-IROH_TEST_URL=http://localhost:8080 IROH_TEST_PEER=YOUR_PUBLIC_ENDPOINT_ID node scripts/test-iroh-launcher.mjs
+IROH_TEST_MODE=custom IROH_TEST_URL=http://localhost:8080 IROH_TEST_PEER=YOUR_PUBLIC_ENDPOINT_ID IROH_TEST_TICKET=YOUR_SERVER_TICKET node scripts/test-iroh-launcher.mjs
 ```
 
 The test checks initial HTML, assets, procedures, shards, live updates, uploads, form redirects, navigation, and session persistence after a service worker restart. Run the commands in separate terminals while the app and static server remain running.

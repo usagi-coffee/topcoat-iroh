@@ -4,34 +4,29 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use iroh::{Endpoint, endpoint::presets};
 use topcoat::{
     Result,
     asset::{AssetBundle, RouterBuilderAssetExt, asset},
-    context::{Cx, app_context},
+    context::{Cx, app_context, try_request_context},
+    launcher,
     router::{
-        Body, IROH_HTTP_ALPN, IrohService, Router, RouterBuilderDiscoverExt,
+        Body, IrohPeer, Router, RouterBuilderDiscoverExt,
         error::see_other,
         href, page,
         request::Bytes,
         response::{IntoResponse, Response},
         route,
     },
-    runtime::{
-        Event, IROH_RUNTIME_ALPN, IrohTransport, RouterBuilderRuntimeExt, connected, procedure,
-        shard, signal,
-    },
+    runtime::{Event, RouterBuilderRuntimeExt, connected, expr, procedure, shard, signal},
     session::{self, HeaderTokenStore, RouterBuilderSessionExt, SessionConfig, TokenHash},
     view::{View, emit, live, view},
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let endpoint = Endpoint::bind(presets::N0).await?;
-    let transport = IrohTransport::new(
-        endpoint.clone(),
-        "/__topcoat/topcoat_runtime_iroh_browser.js",
-    );
+    if launcher::export_if_requested().await? {
+        return Ok(());
+    }
     let router = Router::builder()
         .discover()
         .assets(AssetBundle::load()?)
@@ -41,18 +36,9 @@ async fn main() -> Result<()> {
                 .build(),
         )
         .app_context(Sessions::default())
-        .app_context(transport.clone())
         .runtime()
         .build();
-    let listener = iroh::protocol::Router::builder(endpoint.clone())
-        .accept(IROH_HTTP_ALPN, IrohService::new(router))
-        .accept(IROH_RUNTIME_ALPN, transport)
-        .spawn();
-    endpoint.online().await;
-    println!("App address: {}", endpoint.id());
-    println!("Open your static launcher with #iroh={}", endpoint.id());
-    tokio::signal::ctrl_c().await?;
-    listener.shutdown().await?;
+    topcoat::start(router).await?;
     Ok(())
 }
 
@@ -61,6 +47,7 @@ struct Sessions(Mutex<HashMap<TokenHash, SystemTime>>);
 
 #[page("/")]
 async fn home(cx: &Cx) -> Result<impl View> {
+    let peer = try_request_context::<IrohPeer>(cx).map(|peer| peer.0.to_string());
     let count = signal(cx, || 2usize);
     let name = signal(cx, || "world".to_owned());
     let active = if let Some(hash) = session::token_hash(cx).await? {
@@ -84,6 +71,7 @@ async fn home(cx: &Cx) -> Result<impl View> {
             <body>
                 <h1>"App over iroh"</h1>
                 <p>"This page and its assets arrived over iroh."</p>
+                <p id="peer">(peer.unwrap_or_default())</p>
                 <p id="session">
                     "Session: "
                     if active {
@@ -182,4 +170,64 @@ async fn logout(cx: &Cx) -> Result<Response> {
 #[route(POST "/echo")]
 async fn echo(bytes: Bytes) -> Result<Body> {
     Ok(Body::from(bytes))
+}
+
+#[launcher]
+async fn connection_screen(cx: &Cx) -> Result<impl View> {
+    let endpoint = signal(cx, launcher::endpoint);
+    let ticket = signal(cx, launcher::ticket);
+    let secret = signal(cx, String::new);
+    let status = signal(cx, String::new);
+    let connect = launcher::connect(
+        &expr!(endpoint.get()),
+        &expr!(ticket.get()),
+        &expr!(secret.get()),
+        &status,
+    );
+    Ok(view! {
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>"Connect to app"</title>
+                <link rel="stylesheet" href=(asset!("./style.css"))>
+                launcher::script()
+            </head>
+            <body>
+                <h1>"Connect to app"</h1>
+                <form @submit=(connect)>
+                    <label>
+                        "Server endpoint"
+                        <input
+                            id="endpoint"
+                            autocomplete="off"
+                            :value=$(endpoint.get())
+                            @input=$(|e: Event| endpoint.set(e.target.value))
+                        >
+                    </label>
+                    <label>
+                        "Server ticket (instead of endpoint)"
+                        <input
+                            id="ticket"
+                            autocomplete="off"
+                            :value=$(ticket.get())
+                            @input=$(|e: Event| ticket.set(e.target.value))
+                        >
+                    </label>
+                    <label>
+                        "Client secret (optional)"
+                        <input
+                            id="secret"
+                            type="password"
+                            autocomplete="off"
+                            :value=$(secret.get())
+                            @input=$(|e: Event| secret.set(e.target.value))
+                        >
+                    </label>
+                    <button type="submit">"Connect"</button>
+                    <p role="status">$(status.get())</p>
+                </form>
+            </body>
+        </html>
+    })
 }

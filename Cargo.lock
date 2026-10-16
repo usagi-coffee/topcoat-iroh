@@ -2848,7 +2848,6 @@ dependencies = [
 name = "iroh-app"
 version = "0.10.0"
 dependencies = [
- "iroh",
  "tokio",
  "topcoat",
 ]

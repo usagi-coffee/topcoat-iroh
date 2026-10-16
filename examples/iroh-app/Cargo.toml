@@ -5,9 +5,8 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-iroh = { workspace = true, features = ["tls-ring"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "signal"] }
-topcoat = { workspace = true, features = ["iroh", "runtime-iroh"] }
+topcoat = { workspace = true, features = ["launcher"] }
 
 [lints]
 workspace = true
