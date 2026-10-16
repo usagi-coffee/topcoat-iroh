@@ -16,8 +16,10 @@
 <body>
     <h1>Connect to app</h1>
     <form>
-        <label for="endpoint">App address</label>
-        <input id="endpoint" name="endpoint" required autocomplete="off" spellcheck="false">
+        <label for="endpoint">Server endpoint</label>
+        <input id="endpoint" name="endpoint" autocomplete="off" spellcheck="false">
+        <label for="ticket">Server ticket (instead of endpoint)</label>
+        <input id="ticket" name="ticket" autocomplete="off" spellcheck="false">
         <button type="submit">Connect</button>
     </form>
     <p id="status" role="status">Loading...</p>

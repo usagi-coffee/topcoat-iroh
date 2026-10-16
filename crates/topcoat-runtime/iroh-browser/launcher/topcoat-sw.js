@@ -1,3 +1,4 @@
+import { connectionOptions } from "/__topcoat/settings.js";
 import { get, set } from "/__topcoat/storage.js";
 import init, {
 	createEndpoint,
@@ -7,48 +8,61 @@ import { forward } from "/__topcoat/transport.js";
 let bindings;
 let client;
 
-async function connect(address) {
-	if (client && client.address !== address) {
+async function connect({ endpoint, ticket, secret }) {
+	if (
+		client &&
+		(client.endpoint !== endpoint ||
+			client.ticket !== ticket ||
+			client.secret !== secret)
+	) {
 		const previous = client;
 		client = undefined;
 		void previous.ready
-			.then(async ({ endpoint, connection }) => {
+			.then(async ({ clientEndpoint, connection }) => {
 				connection.close();
-				await endpoint.close();
+				await clientEndpoint.close();
 			})
 			.catch(() => {});
 	}
 	if (client) {
 		const cached = client;
 		const current = await cached.ready;
-		if (!current.connection.isClosed()) return current.connection;
+		if (!current.connection.isClosed()) return current;
 		if (client === cached) {
 			client = undefined;
-			void current.endpoint.close();
+			void current.clientEndpoint.close();
 		}
-		return connect(address);
+		return connect({ endpoint, ticket, secret });
 	}
 	bindings ??= init().catch((error) => {
 		bindings = undefined;
 		throw error;
 	});
 	const pending = {
-		address,
+		endpoint,
+		ticket,
+		secret,
 		ready: (async () => {
 			await bindings;
-			const endpoint = await createEndpoint();
+			const clientEndpoint = await createEndpoint(secret || undefined);
 			try {
-				return { endpoint, connection: await endpoint.connectHttp(address) };
+				return {
+					clientEndpoint,
+					connection: await clientEndpoint.connectHttp(
+						endpoint || undefined,
+						ticket || undefined,
+					),
+				};
 			} catch (error) {
-				await endpoint.close();
-				endpoint.free();
+				await clientEndpoint.close();
+				clientEndpoint.free();
 				throw error;
 			}
 		})(),
 	};
 	client = pending;
 	try {
-		return (await pending.ready).connection;
+		return await pending.ready;
 	} catch (error) {
 		if (client === pending) client = undefined;
 		throw error;
@@ -61,23 +75,22 @@ self.addEventListener("install", (event) =>
 self.addEventListener("activate", (event) =>
 	event.waitUntil(self.clients.claim()),
 );
+let configuring = Promise.resolve();
 self.addEventListener("message", (event) => {
 	if (event.data?.type !== "configure" || !event.source || !event.ports[0])
 		return;
 	if (new URL(event.source.url).origin !== self.location.origin) return;
-	const address = event.data.endpoint;
-	if (typeof address !== "string" || !address || address.length > 8192) return;
-	event.waitUntil(
-		(async () => {
-			try {
-				await connect(address);
-				await set("endpoint", address);
-				event.ports[0].postMessage({ ok: true });
-			} catch (error) {
-				event.ports[0].postMessage({ error: String(error) });
-			}
-		})(),
-	);
+	configuring = configuring.then(async () => {
+		try {
+			const settings = connectionOptions(event.data);
+			const { clientEndpoint } = await connect(settings);
+			await set("connection", settings);
+			event.ports[0].postMessage({ ok: true, endpointId: clientEndpoint.id() });
+		} catch (error) {
+			event.ports[0].postMessage({ error: String(error) });
+		}
+	});
+	event.waitUntil(configuring);
 });
 
 self.addEventListener("fetch", (event) => {
@@ -91,8 +104,13 @@ self.addEventListener("fetch", (event) => {
 	)
 		return;
 	const task = (async () => {
-		const address = await get("endpoint");
-		if (!address) {
+		const settings = (await get("connection")) ?? {
+			endpoint: (await get("endpoint")) ?? "",
+			ticket: "",
+			secret: "",
+		};
+		const { endpoint, ticket, secret } = settings;
+		if (!endpoint && !ticket) {
 			if (event.request.mode === "navigate") {
 				return {
 					response: await fetch("/__topcoat/index.html"),
@@ -101,10 +119,16 @@ self.addEventListener("fetch", (event) => {
 			}
 			throw new Error("Open the launcher to connect to an app");
 		}
-		const connection = await connect(address);
+		const { connection, clientEndpoint } = await connect(
+			connectionOptions(settings),
+		);
+		let sessionKey = ticket
+			? `session:ticket:${ticket}`
+			: `session:${endpoint}`;
+		if (secret) sessionKey += `:${clientEndpoint.id()}`;
 		return forward(event.request, connection, {
-			get: () => get(`session:${address}`),
-			set: (value) => set(`session:${address}`, value),
+			get: () => get(sessionKey),
+			set: (value) => set(sessionKey, value),
 		});
 	})();
 	event.respondWith(

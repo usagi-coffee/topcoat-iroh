@@ -1,38 +1,26 @@
+import { connect, openApp } from "/__topcoat/connect.js";
+import { connectionFragment } from "/__topcoat/fragment.js";
+import { connectionSettings } from "/__topcoat/settings.js";
 import { get } from "/__topcoat/storage.js";
 
 const status = document.querySelector("#status");
-const input = document.querySelector("#endpoint");
+const endpointInput = document.querySelector("#endpoint");
+const ticketInput = document.querySelector("#ticket");
 const button = document.querySelector("button");
-let worker;
+const fragment = connectionFragment(location.href);
+if (fragment.present) history.replaceState(history.state, "", fragment.href);
+let secret = fragment.secret ?? "";
 
-async function start(address) {
+async function start() {
 	button.disabled = true;
 	status.textContent = "Connecting...";
 	try {
-		await new Promise((resolve, reject) => {
-			const channel = new MessageChannel();
-			const timeout = setTimeout(() => {
-				channel.port1.close();
-				reject(
-					new Error("Connection timed out. Check that the app is running."),
-				);
-			}, 45_000);
-			channel.port1.onmessage = ({ data }) => {
-				clearTimeout(timeout);
-				channel.port1.close();
-				if (data.error) reject(new Error(data.error));
-				else resolve();
-			};
-			worker.postMessage({ type: "configure", endpoint: address }, [
-				channel.port2,
-			]);
+		await connect({
+			endpoint: endpointInput.value,
+			ticket: ticketInput.value,
+			secret,
 		});
-		// Preserve deep links when a static host served its 404 launcher.
-		const target = location.pathname.startsWith("/__topcoat/")
-			? "/"
-			: location.pathname + location.search;
-		const fragment = location.hash.startsWith("#iroh=") ? "" : location.hash;
-		location.replace(target + fragment);
+		openApp();
 	} catch (error) {
 		status.textContent = String(error);
 		button.disabled = false;
@@ -41,37 +29,29 @@ async function start(address) {
 
 document.querySelector("form").addEventListener("submit", (event) => {
 	event.preventDefault();
-	if (worker) void start(input.value.trim());
+	void start();
 });
 
 try {
-	if (!isSecureContext || !navigator.serviceWorker)
-		throw new Error("Open this launcher over HTTPS (or localhost).");
-	const registration = await navigator.serviceWorker.register(
-		"/topcoat-sw.js",
-		{ type: "module", scope: "/" },
-	);
-	await navigator.serviceWorker.ready;
-	if (!navigator.serviceWorker.controller) {
-		await new Promise((resolve) =>
-			navigator.serviceWorker.addEventListener("controllerchange", resolve, {
-				once: true,
-			}),
-		);
-	}
-	worker = registration.active;
 	const config = await fetch("/__topcoat/config.json", {
 		cache: "no-store",
 	}).then((response) => {
 		if (!response.ok) throw new Error("Cannot load launcher config");
 		return response.json();
 	});
-	const fragment = new URLSearchParams(location.hash.slice(1));
-	input.value =
-		fragment.get("iroh") || config.endpoint || (await get("endpoint")) || "";
-	status.textContent = "Enter the address of the running app.";
-	if (input.value && !location.pathname.startsWith("/__topcoat/"))
-		await start(input.value);
+	const saved = (await get("connection")) ?? {
+		endpoint: (await get("endpoint")) ?? "",
+	};
+	const settings = connectionSettings(fragment, config, saved);
+	endpointInput.value = settings.endpoint;
+	ticketInput.value = settings.ticket;
+	secret = settings.secret;
+	status.textContent = "Enter an endpoint or a ticket for the running app.";
+	if (
+		(settings.endpoint || settings.ticket) &&
+		(fragment.present || !location.pathname.startsWith("/__topcoat/"))
+	)
+		await start();
 } catch (error) {
 	status.textContent = String(error);
 }
